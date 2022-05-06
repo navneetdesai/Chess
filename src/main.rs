@@ -16,17 +16,17 @@ fn main() {
 
 /// Gets the player names
 pub fn get_player_names() -> (String, String) {
-    print!("Please enter name for player 1(white): ");
-    let mut name1 = String::new();
-    stdout().flush().unwrap();
-    std::io::stdin()
-        .read_line(&mut name1)
-        .expect("Umm, system crashed. Please restart.");
-    print!("\nPlease enter name for player 2(black): ");
-    let mut name2 = String::new();
-    stdout().flush().unwrap();
-    std::io::stdin()
-        .read_line(&mut name2)
-        .expect("Umm, system crashed. Please restart.");
+    let name1 = get_name("player-1: (white)");
+    let name2 = get_name("player-2: (black)");
     (String::from(name1.trim()), String::from(name2.trim()))
+}
+
+fn get_name(prompt: &str) -> String {
+    print!("Please enter name for {}: ", prompt);
+    let mut name = String::new();
+    stdout().flush().unwrap();
+    std::io::stdin()
+        .read_line(&mut name)
+        .expect("Umm, system crashed. Please restart.");
+    name
 }
