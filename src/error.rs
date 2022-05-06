@@ -5,5 +5,5 @@ pub enum Error {
     KingUnderCheck(String),
     Checkmate(String),
     InvalidPromotion(String),
-    Dummy
+    Dummy,
 }

@@ -7,10 +7,7 @@ pub struct Player {
 
 impl Player {
     pub fn new(name: String, color: Color) -> Self {
-        Player {
-            name,
-            color,
-        }
+        Player { name, color }
     }
 
     pub fn get_name(&self) -> &String {

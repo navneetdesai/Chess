@@ -18,7 +18,6 @@ impl Board {
     /// Creates a new board with the standard chess configuration
     pub fn new() -> Self {
         // create board with starting configuration
-        // !Todo: remove init, place it in default match block of line 28
         let mut squares = Self::init_empty_board();
 
         // place pieces according to standard chess starting configuration
@@ -58,7 +57,7 @@ impl Board {
             squares,
             white_king_position: (7, 4),
             black_king_position: (0, 4),
-         }
+        }
     }
 
     fn place_piece(squares: &mut Vec<Vec<Square>>, piece1: Piece, piece2: Piece, file: usize) {
@@ -74,7 +73,6 @@ impl Board {
     pub fn set_piece(&mut self, row: isize, file: isize, piece: Piece) {
         let mut board = &mut self.squares;
         board[row as usize][file as usize].place_piece(piece);
-
     }
 
     pub fn remove_piece(&mut self, row: isize, file: isize) {

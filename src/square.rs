@@ -29,6 +29,8 @@ impl Square {
         self.piece = Some(piece);
     }
 
+    pub fn create_empty_squ
+
     pub fn remove_piece(&mut self) {
         self.piece = None;
     }
