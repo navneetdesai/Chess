@@ -61,11 +61,11 @@ impl Chess {
             let current_player = &self.players[self.current_turn];
             print!("{}: ", current_player.get_name());
             let (source, destination) = Self::get_move_temp();
-            match self.move_piece_temp(source, destination) {
+            match self.make_a_move(source, destination) {
                 Ok(()) => {
                     if self.is_under_checkmate(self.players[self.current_turn].get_color().other())
                     {
-                        println!("Checkmate!  wins!");
+                        println!("Checkmate! {} wins!", self.players[self.current_turn].get_name());
                         break;
                     }
                     self.current_turn = (self.current_turn + 1) % 2;
@@ -84,7 +84,7 @@ impl Chess {
     }
 
     /// Driver code for the game (1v1 terminal)
-    fn move_piece_temp(
+    fn make_a_move(
         &mut self,
         source: (isize, isize),
         destination: (isize, isize),
@@ -218,7 +218,6 @@ impl Chess {
                     )));
                 }
             }
-            // (2, 5)  (5, 6)
             else if (source.1 == destination.1 - 1 || source.1 == destination.1 + 1)
                 && source.0 == destination.0 - 1
             {
@@ -237,7 +236,6 @@ impl Chess {
             if source.1 == destination.1 {
                 // pawn moves straight
                 if source.0 == destination.0 + 2 && source.0 == 6 {
-                    // piece at dest and piece at dest - 1 should be none
                     if self.get_piece(destination.0 + 1, destination.1).is_some()
                         && self.get_piece(destination.0, destination.1).is_some()
                     {
@@ -888,7 +886,7 @@ impl Chess {
         ];
         for move_ in &possible_moves {
             let destination = (king_position.0 + move_.0, king_position.1 + move_.1);
-            match self.move_piece_temp(king_position, destination) {
+            match self.make_a_move(king_position, destination) {
                 Ok(()) => {
                     self.chessboard = current_state;
                     self.castling_rights = current_castling_rights;
@@ -929,7 +927,7 @@ impl Chess {
 
         for move_ in &possible_moves {
             let destination = (row + move_.0 * multiplier, col + move_.1);
-            match self.move_piece_temp((row, col), destination) {
+            match self.make_a_move((row, col), destination) {
                 Ok(()) => {
                     return false;
                 }
@@ -943,7 +941,7 @@ impl Chess {
         for i in 0..8 {
             let destinations = [(i, col), (row, i)];
             for destination in destinations {
-                match self.move_piece_temp((row, col), destination) {
+                match self.make_a_move((row, col), destination) {
                     Ok(()) => {
                         return false;
                     }
@@ -957,7 +955,7 @@ impl Chess {
     fn checkmate_helper_knight(&mut self, color: Color, row: isize, col: isize) -> bool {
         for move_ in &LEGAL_KNIGHT_MOVES {
             let destination = (row + move_.0, col + move_.1);
-            match self.move_piece_temp((row, col), destination) {
+            match self.make_a_move((row, col), destination) {
                 Ok(()) => {
                     return false;
                 }
@@ -976,7 +974,7 @@ impl Chess {
                 (row + index, col + index),
             ];
             for destination in destinations {
-                match self.move_piece_temp((row, col), destination) {
+                match self.make_a_move((row, col), destination) {
                     Ok(()) => {
                         return false;
                     }
