@@ -31,6 +31,15 @@ const LEGAL_KING_MOVES: [(isize, isize); 8] = [
     (1, -1),
 ];
 
+const LEGAL_PAWN_MOVES: [(isize, isize); 4] = [
+    (1, 0),
+    (2, 0),
+    (1, 1),
+    (1, -1),
+];
+
+
+
 pub struct Chess {
     chessboard: Board,
     players: [Player; 2],
@@ -285,6 +294,7 @@ impl Chess {
         color: Color,
     ) -> Result<(), Error> {
         let x = if color == Color::White { 1 } else { -1 };
+        // Todo: shouldn't source be checked??
         if self.get_piece(destination.0 + x, destination.1).is_some()
             && self.get_piece(destination.0, destination.1).is_some()
         {
@@ -595,7 +605,6 @@ impl Chess {
                 }
             }
         } else if source.1 - destination.1 == 3 && source.0 == destination.0 {
-            // castling
             if color == Color::White {
                 if self.castling_rights[0][0]
                     && self.get_piece(source.0, source.1 - 1).is_none()
@@ -636,14 +645,14 @@ impl Chess {
         &mut self,
         source: (isize, isize),
         destination: (isize, isize),
-        castl: (usize, usize),
+        castling_rights: (usize, usize),
         color: Color,
         rook_source: (isize, isize),
         rook_destination: (isize, isize),
     ) -> Result<(), Error> {
         self._move_piece(source, destination);
         self._move_piece(rook_source, rook_destination);
-        self.castling_rights[castl.0][castl.1] = false;
+        self.castling_rights[castling_rights.0][castling_rights.1] = false;
         self.chessboard.set_king_position(color, destination);
         Ok(())
     }
@@ -682,7 +691,7 @@ impl Chess {
 
     /// Returns true if the King at king_position is under check by a rook or queen of opposite color
     fn is_under_check_by_rook_queen(&self, king_position: (isize, isize), color: Color) -> bool {
-        // change to a loop like knight
+
         let mut row = king_position.0;
         let mut file = king_position.1;
         // check right
@@ -874,17 +883,8 @@ impl Chess {
         let mut king_position = self.chessboard.get_king_position(color);
         let current_state = self.chessboard.clone();
         let current_castling_rights = self.castling_rights.clone();
-        let possible_moves = vec![
-            (1, 0),
-            (1, 1),
-            (0, 1),
-            (-1, 1),
-            (-1, 0),
-            (-1, -1),
-            (0, -1),
-            (1, -1),
-        ];
-        for move_ in &possible_moves {
+
+        for move_ in &LEGAL_KING_MOVES {
             let destination = (king_position.0 + move_.0, king_position.1 + move_.1);
             match self.make_a_move(king_position, destination) {
                 Ok(()) => {
@@ -894,8 +894,8 @@ impl Chess {
                 }
                 _ => {}
             }
-            for row in 0..8 {
-                for col in 0..8 {
+            for row in 0..ROWS {
+                for col in 0..COLS {
                     let piece = self.chessboard.get_piece(row, col);
                     if piece.is_some() && *piece.unwrap().get_color() == color {
                         let piece = piece.unwrap();
@@ -922,10 +922,9 @@ impl Chess {
 
     fn checkmate_helper_pawn(&mut self, color: Color, row: isize, col: isize) -> bool {
         // create an array of possible
-        let mut possible_moves = vec![(1, 0), (2, 0), (1, 1), (1, -1)];
         let multiplier = if color == Color::White { -1 } else { 1 };
 
-        for move_ in &possible_moves {
+        for move_ in &LEGAL_PAWN_MOVES {
             let destination = (row + move_.0 * multiplier, col + move_.1);
             match self.make_a_move((row, col), destination) {
                 Ok(()) => {
