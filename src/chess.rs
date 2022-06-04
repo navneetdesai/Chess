@@ -17,6 +17,7 @@ const LEGAL_KNIGHT_MOVES: [(isize, isize); 8] = [
     (-1, -2),
     (1, -2),
 ];
+
 const LEGAL_KING_MOVES: [(isize, isize); 8] = [
     (1, 0),
     (1, 1),
@@ -1017,7 +1018,7 @@ impl Chess {
     fn get_move_temp() -> ((isize, isize), (isize, isize)) {
         let mut source = String::new();
         let mut destination = String::new();
-        stdout().flush();
+        stdout().flush().unwrap();
         let mut source1 = (-1, -1);
         let mut destination1 = (-1, -1);
         while source1 == (-1, -1) {
@@ -1052,7 +1053,7 @@ impl Chess {
     /// Returns the next move from the user
     fn get_move() -> String {
         let mut move_ = String::new();
-        stdout().flush();
+        stdout().flush().unwrap();
         stdin()
             .read_line(&mut move_)
             .expect("Oops! Something went wrong. Please restart.");

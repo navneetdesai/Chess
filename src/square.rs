@@ -9,18 +9,7 @@ impl Square {
     pub fn new(piece: Option<Piece>) -> Self {
         Square { piece }
     }
-
-    pub fn is_empty(&self) -> bool {
-        self.piece.is_none()
-    }
-
-    pub fn has_piece(&self) -> bool {
-        self.piece.is_some()
-    }
-
-    /// Returns the piece on the square
-    /// Will panic if the square is empty
-    /// Should be called after `has_piece`
+    
     pub fn get_piece(&self) -> &Option<Piece> {
         &self.piece
     }
