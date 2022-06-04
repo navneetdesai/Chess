@@ -1007,56 +1007,41 @@ impl Chess {
         return &None;
     }
 
+    /// Prompts the user for source and destination
+    /// Extracts the row and column from the input and returns a tuple
+    fn get_move_temp() -> ((isize, isize), (isize, isize)) {
+        let mut source = String::new();
+        let mut destination = String::new();
+        stdout().flush().unwrap();
+        let source = Self::get_position("Source", source);
+        let destination= Self::get_position("Destination", destination);
+        (source, destination)
+    }
+
+    /// Prompts for input until input is valid
+    fn get_position(str: &str, mut input: String) -> (isize, isize) {
+        let mut position = (-1, -1);
+        while position == (-1, -1) {
+            println!("Enter {}:", str);
+            stdin()
+                .read_line(&mut input)
+                .expect("Oops! Something went wrong. Please restart.");
+            match Self::extract_position(&input) {
+                (row, file) => {
+                    if row < ROWS && file < COLS && row >= 0 && file >= 0 {
+                        position = (row, file);
+                    }
+                }
+            }
+        }
+        position
+    }
+
     /// Returns the 0-indexed (row, col) extracted from the string
     fn extract_position(str: &str) -> (isize, isize) {
         let mut chars = str.chars();
         let file = chars.next().unwrap() as usize - 97;
         let row = 8 - (chars.next().unwrap() as usize - 48);
         (row as isize, file as isize)
-    }
-
-    fn get_move_temp() -> ((isize, isize), (isize, isize)) {
-        let mut source = String::new();
-        let mut destination = String::new();
-        stdout().flush().unwrap();
-        let mut source1 = (-1, -1);
-        let mut destination1 = (-1, -1);
-        while source1 == (-1, -1) {
-            println!("Enter Source:");
-            stdin()
-                .read_line(&mut source)
-                .expect("Oops! Something went wrong. Please restart.");
-            match Self::extract_position(&source) {
-                (row, file) => {
-                    if row < ROWS && file < COLS && row >= 0 && file >= 0 {
-                        source1 = (row, file);
-                    }
-                }
-            }
-        }
-        while destination1 == (-1, -1) {
-            println!("Enter Destination:");
-            stdin()
-                .read_line(&mut destination)
-                .expect("Oops! Something went wrong. Please restart.");
-            match Self::extract_position(&destination) {
-                (row, file) => {
-                    if row < ROWS && file < COLS && row >= 0 && file >= 0 {
-                        destination1 = (row, file);
-                    }
-                }
-            }
-        }
-        (source1, destination1)
-    }
-
-    /// Returns the next move from the user
-    fn get_move() -> String {
-        let mut move_ = String::new();
-        stdout().flush().unwrap();
-        stdin()
-            .read_line(&mut move_)
-            .expect("Oops! Something went wrong. Please restart.");
-        String::from(move_.trim())
     }
 }

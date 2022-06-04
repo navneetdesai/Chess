@@ -9,7 +9,7 @@ impl Square {
     pub fn new(piece: Option<Piece>) -> Self {
         Square { piece }
     }
-    
+
     pub fn get_piece(&self) -> &Option<Piece> {
         &self.piece
     }
