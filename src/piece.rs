@@ -1,5 +1,5 @@
 use crate::*;
-use std::fmt::{Display, Result};
+use std::fmt::{Display};
 
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub enum Piece {
@@ -10,6 +10,7 @@ pub enum Piece {
     Knight(Color),
     Pawn(Color),
 }
+
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub enum Color {
     Black,

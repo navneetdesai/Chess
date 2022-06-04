@@ -2,7 +2,6 @@ use crate::piece::Color::{Black, White};
 use crate::piece::{Color, Piece};
 use crate::square::Square;
 use colored::*;
-use std::fmt::format;
 
 const ROWS: usize = 8;
 const FILES: usize = 8;
@@ -96,12 +95,12 @@ impl Board {
 
     /// Returns a new board with all squares set to None
     fn init_empty_board() -> Vec<Vec<Square>> {
-        // have to take this approach because Square does not implement Copy
         let mut squares: Vec<Vec<Square>> = vec![];
         for _ in 0..ROWS {
             let mut row = vec![];
-            for _ in 0..=FILES {
+            for _ in 0..FILES {
                 row.push(Square::new(None));
+                println!("{}", row.len());
             }
             squares.push(row);
         }

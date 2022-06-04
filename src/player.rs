@@ -1,4 +1,4 @@
-use crate::piece::{Color, Piece};
+use crate::piece::{Color};
 
 pub struct Player {
     name: String,
