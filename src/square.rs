@@ -21,8 +21,8 @@ impl Square {
     /// Returns the piece on the square
     /// Will panic if the square is empty
     /// Should be called after `has_piece`
-    pub fn get_piece(&self) -> &Piece {
-        self.piece.as_ref().unwrap()
+    pub fn get_piece(&self) -> &Option<Piece> {
+        &self.piece
     }
 
     pub fn place_piece(&mut self, piece: Piece) {

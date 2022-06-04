@@ -20,7 +20,7 @@ impl Board {
         let mut squares = Self::init_empty_board();
 
         // place pieces according to standard chess starting configuration
-        for file in 0..=7 {
+        for file in 0..FILES {
             squares[1][file] = Square::new(Some(Piece::Pawn(Black)));
             squares[6][file] = Square::new(Some(Piece::Pawn(White)));
             match file {
@@ -59,6 +59,7 @@ impl Board {
         }
     }
 
+    // Helper function for repetitive code
     fn place_piece(squares: &mut Vec<Vec<Square>>, piece1: Piece, piece2: Piece, file: usize) {
         squares[0][file].place_piece(piece1);
         squares[7][file].place_piece(piece2);
@@ -66,7 +67,7 @@ impl Board {
 
     pub fn get_piece(&self, row: isize, file: isize) -> &Option<Piece> {
         let board = &self.squares;
-        &board[row as usize][file as usize].piece
+        board[row as usize][file as usize].get_piece()
     }
 
     pub fn set_piece(&mut self, row: isize, file: isize, piece: Piece) {
@@ -100,7 +101,6 @@ impl Board {
             let mut row = vec![];
             for _ in 0..FILES {
                 row.push(Square::new(None));
-                println!("{}", row.len());
             }
             squares.push(row);
         }

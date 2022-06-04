@@ -1,10 +1,7 @@
 use crate::board::Board;
 use crate::error::Error;
-// use crate::piece::Color::{Black, White};
-// use crate::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
 use crate::piece::{Color, Piece};
 use crate::player::Player;
-// use regex::{Match, Regex};
 use std::io::{stdin, stdout, Write};
 
 const PLAYERS: usize = 2;
