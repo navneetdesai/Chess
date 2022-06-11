@@ -1,5 +1,5 @@
 use crate::*;
-use std::fmt::{Display};
+use std::fmt::Display;
 
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub enum Piece {

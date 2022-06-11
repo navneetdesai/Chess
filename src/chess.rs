@@ -1,3 +1,4 @@
+use std::fmt::format;
 use crate::board::Board;
 use crate::error::Error;
 use crate::piece::{Color, Piece};
@@ -29,14 +30,7 @@ const LEGAL_KING_MOVES: [(isize, isize); 8] = [
     (1, -1),
 ];
 
-const LEGAL_PAWN_MOVES: [(isize, isize); 4] = [
-    (1, 0),
-    (2, 0),
-    (1, 1),
-    (1, -1),
-];
-
-
+const LEGAL_PAWN_MOVES: [(isize, isize); 4] = [(1, 0), (2, 0), (1, 1), (1, -1)];
 
 pub struct Chess {
     chessboard: Board,
@@ -67,23 +61,26 @@ impl Chess {
             self.chessboard.pretty_print();
             let current_player = &self.players[self.current_turn];
             print!("{}: ", current_player.get_name());
-            let (source, destination) = Self::get_move_temp();
+            let (source, destination) = Self::get_move();
             match self.make_a_move(source, destination) {
                 Ok(()) => {
                     if self.is_under_checkmate(self.players[self.current_turn].get_color().other())
                     {
-                        println!("Checkmate! {} wins!", self.players[self.current_turn].get_name());
+                        println!(
+                            "Checkmate! {} wins!",
+                            self.players[self.current_turn].get_name()
+                        );
                         break;
                     }
                     self.current_turn = (self.current_turn + 1) % 2;
                 }
                 Err(e) => match e {
-                    Error::InvalidMove(msg) => println!("{}", msg),
-                    Error::InvalidDestination(msg) => println!("{}", msg),
-                    Error::InvalidSource(msg) => println!("{}", msg),
-                    Error::KingUnderCheck(msg) => println!("{}", msg),
-                    Error::Checkmate(msg) => println!("{}", msg),
-                    Error::InvalidPromotion(msg) => println!("{}", msg),
+                    Error::InvalidMove(msg) => println!("Invalid Move: {}", msg),
+                    Error::InvalidDestination(msg) => println!("Invalid Destination: {}", msg),
+                    Error::InvalidSource(msg) => println!("Invalid Source: {}", msg),
+                    Error::KingUnderCheck(msg) => println!("King under check{}", msg),
+                    Error::Checkmate(msg) => println!("Checkmate: {}", msg),
+                    Error::InvalidPromotion(msg) => println!("Invalid Promotion: {}", msg),
                     Error::Dummy => println!("Dummy"),
                 },
             }
@@ -192,6 +189,7 @@ impl Chess {
         Ok(piece)
     }
 
+    /// Validates pawn move and changes game state
     fn move_pawn(
         &mut self,
         color: Color,
@@ -199,108 +197,48 @@ impl Chess {
         destination: (isize, isize),
         check: bool,
     ) -> Result<(), Error> {
-        if color == Color::Black {
-            if source.1 == destination.1 {
-                if source.0 == destination.0 - 2 && source.0 == 1 {
-                    if self.get_piece(destination.0 - 1, destination.1).is_some()
-                        && self.get_piece(destination.0, destination.1).is_some()
-                    {
-                        println!("Cant move two squares for white");
+        let (x, starting_x, front_square) = match color {
+            Color::White => (2, 6, 1),
+            Color::Black => (-2, 1, -1)
+        };
+        // Non-capturing move
+        if source.1 == destination.1 {
+            if source.0 == destination.0 + x && source.0 == starting_x {
+                if self.get_piece(destination.0 + front_square, destination.1).is_some()
+                    || self.get_piece(destination.0, destination.1).is_some() {
                         return Err(Error::InvalidMove(format!(
-                            "Can't move to {:?}",
+                            "Can't move to {:?}, obstacles between source and destination",
                             destination
                         )));
-                    }
-                } else if source.0 == destination.0 - 1 {
-                    if self.get_piece(destination.0, destination.1).is_some() {
-                        return Err(Error::InvalidMove(format!(
-                            "Can't move to {:?}",
-                            destination
-                        )));
-                    }
-                } else {
-                    return Err(Error::InvalidMove(format!(
-                        "Can't move to {:?}",
-                        destination
-                    )));
                 }
-            }
-            else if (source.1 == destination.1 - 1 || source.1 == destination.1 + 1)
-                && source.0 == destination.0 - 1
-            {
-                // pawn captures
-                let dest_piece = self.get_piece(destination.0, destination.1);
-                if dest_piece.is_none() {
+            } else if source.0 == destination.0 + front_square {
+                if self.get_piece(destination.0, destination.1).is_some(){
                     return Err(Error::InvalidMove(format!(
-                        "Can't move to {:?}",
-                        destination
-                    )));
+                            "Can't move to {:?}, cannot capture this piece",
+                            destination
+                        )));
                 }
             } else {
-                return Err(Error::InvalidMove(format!("Invalid pawn move")));
+                return Err(Error::InvalidMove(format!(
+                        "Can't move to {:?}, Pawn moves one square ahead or captures diagonally",
+                        destination
+                    )));
+            }
+        // Capturing move
+        } else if (source.1 == destination.1 - 1 || source.1 == destination.1 + 1)
+            && source.0 == destination.0 + front_square {
+            let destination_piece = self.get_piece(destination.0, destination.1);
+            if destination_piece.is_none() {
+                return Err(Error::InvalidMove(format!(
+                        "Can't move to {:?}, capturing move should have a piece at destination",
+                        destination
+                    )));
             }
         } else {
-            if source.1 == destination.1 {
-                // pawn moves straight
-                if source.0 == destination.0 + 2 && source.0 == 6 {
-                    if self.get_piece(destination.0 + 1, destination.1).is_some()
-                        && self.get_piece(destination.0, destination.1).is_some()
-                    {
-                        return Err(Error::InvalidMove(format!(
-                            "Can't move to {:?}",
-                            destination
-                        )));
-                    }
-                } else if source.0 == destination.0 + 1 {
-                    // piece at dest should be none
-                    if self.get_piece(destination.0, destination.1).is_some() {
-                        return Err(Error::InvalidMove(format!(
-                            "Can't move to {:?}",
-                            destination
-                        )));
-                    }
-                } else {
-                    return Err(Error::InvalidMove(format!(
-                        "Can't move to {:?}",
-                        destination
-                    )));
-                }
-            } else if (source.1 == destination.1 - 1 || source.1 == destination.1 + 1)
-                && source.0 == destination.0 + 1
-            {
-                // pawn captures
-                let dest_piece = self.get_piece(destination.0, destination.1);
-                if dest_piece.is_none() {
-                    return Err(Error::InvalidMove(format!(
-                        "Can't move to {:?}",
-                        destination
-                    )));
-                }
-            } else {
-                return Err(Error::InvalidMove(format!("Invalid pawn move")));
-            }
+            return Err(Error::InvalidMove(format!("Invalid pawn move!")));
         }
         self.promote_pawn(color, source, destination, check)?;
         self._move_piece(source, destination);
-        Ok(())
-    }
-
-    fn pawn_validation_helper(
-        &self,
-        source: (isize, isize),
-        destination: (isize, isize),
-        color: Color,
-    ) -> Result<(), Error> {
-        let x = if color == Color::White { 1 } else { -1 };
-        // Todo: shouldn't source be checked??
-        if self.get_piece(destination.0 + x, destination.1).is_some()
-            && self.get_piece(destination.0, destination.1).is_some()
-        {
-            return Err(Error::InvalidMove(format!(
-                "Can't move to {:?}",
-                destination
-            )));
-        }
         Ok(())
     }
 
@@ -689,7 +627,6 @@ impl Chess {
 
     /// Returns true if the King at king_position is under check by a rook or queen of opposite color
     fn is_under_check_by_rook_queen(&self, king_position: (isize, isize), color: Color) -> bool {
-
         let mut row = king_position.0;
         let mut file = king_position.1;
         // check right
@@ -1004,17 +941,17 @@ impl Chess {
         if row < ROWS && row >= 0 && file < COLS && file >= 0 {
             return self.chessboard.get_piece(row, file);
         }
-        return &None;
+        &None
     }
 
     /// Prompts the user for source and destination
     /// Extracts the row and column from the input and returns a tuple
-    fn get_move_temp() -> ((isize, isize), (isize, isize)) {
+    fn get_move() -> ((isize, isize), (isize, isize)) {
         let mut source = String::new();
         let mut destination = String::new();
         stdout().flush().unwrap();
         let source = Self::get_position("Source", source);
-        let destination= Self::get_position("Destination", destination);
+        let destination = Self::get_position("Destination", destination);
         (source, destination)
     }
 

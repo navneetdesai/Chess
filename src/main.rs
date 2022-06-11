@@ -1,8 +1,8 @@
 mod board;
 mod chess;
+mod error;
 mod piece;
 mod player;
-mod error;
 mod square;
 use crate::chess::Chess;
 use colored::*;
