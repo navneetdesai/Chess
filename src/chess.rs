@@ -102,8 +102,8 @@ impl Chess {
         match piece {
             Piece::Pawn(color) => self.move_pawn(color, source, destination, false)?,
             Piece::Rook(color) => self.move_rook(color, source, destination)?,
-            Piece::Knight(color) => self.move_knight(color, source, destination)?,
-            Piece::Bishop(color) => self.move_bishop(color, source, destination)?,
+            Piece::Knight(color) => self.move_knight(source, destination)?,
+            Piece::Bishop(color) => self.move_bishop(source, destination)?,
             Piece::Queen(color) => self.move_queen(color, source, destination)?,
             Piece::King(color) => self.move_king(color, source, destination)?,
         }
@@ -290,7 +290,7 @@ impl Chess {
     ) -> Result<(), Error> {
         // validate its either in the same row or same column
         if source.0 != destination.0 && source.1 != destination.1 {
-            return Err(Error::InvalidMove(format!("Invalid move")));
+            return Err(Error::InvalidMove(format!("Invalid move. Rook moves in the same file or same row")));
         }
         match source.0 == destination.0 {
             true => {
@@ -380,7 +380,7 @@ impl Chess {
     /// Moves the Knight if source -> destination is valid for that Knight
     fn move_knight(
         &mut self,
-        color: Color,
+        // color validation is done in _validate_move_generic
         source: (isize, isize),
         destination: (isize, isize),
     ) -> Result<(), Error> {
@@ -400,14 +400,15 @@ impl Chess {
     /// Moves the bishop if possible else returns an Error
     fn move_bishop(
         &mut self,
-        color: Color,
         source: (isize, isize),
         destination: (isize, isize),
     ) -> Result<(), Error> {
+        // Color is not needed because color validation has been
+        // completed in validate_move_generic
         if source.0 + source.1 != destination.0 + destination.1
             && source.0 - source.1 != destination.0 - destination.1
         {
-            return Err(Error::InvalidMove(format!("Invalid move")));
+            return Err(Error::InvalidMove(format!("Invalid move. Target is not on the same diagonal as the bishop")));
         }
         match source.0 > destination.0 {
             true => match source.1 > destination.1 {
@@ -466,8 +467,8 @@ impl Chess {
             };
             if piece.is_some() {
                 return Err(Error::InvalidMove(format!(
-                    "Can't move to {:?}",
-                    destination
+                    "Can't move to {:?}. Bishop move blocked by another piece!",
+                    destination,
                 )));
             }
         }
@@ -486,9 +487,9 @@ impl Chess {
         } else if source.0 + source.1 == destination.0 + destination.1
             || source.0 - source.1 == destination.0 - destination.1
         {
-            self.move_bishop(color, source, destination)
+            self.move_bishop(source, destination)
         } else {
-            Err(Error::InvalidMove(format!("Invalid queen move")))
+            Err(Error::InvalidMove(format!("Invalid queen move.")))
         }
     }
 
