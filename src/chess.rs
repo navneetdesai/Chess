@@ -4,6 +4,7 @@ use crate::error::Error;
 use crate::piece::{Color, Piece};
 use crate::player::Player;
 use std::io::{stdin, stdout, Write};
+use std::thread::current;
 
 const PLAYERS: usize = 2;
 const ROWS: isize = 8;
@@ -60,8 +61,26 @@ impl Chess {
         loop {
             self.chessboard.pretty_print();
             let current_player = &self.players[self.current_turn];
-            print!("{}: ", current_player.get_name());
-            let (source, destination) = Self::get_move();
+            print!("{}' turn. \n", current_player.get_name());
+            let (source, destination) = match Self::get_move(){
+                Ok((source, destination)) => (source, destination),
+                Err(Error::DrawOffer(_)) => {
+                    let msg = &format!("{} offered a draw!\nDo you want to accept? (Y / N)", current_player.get_name())[..];
+                    let response = String::new();
+                    match Self::get_position(msg, response) {
+                        Err(Error::DrawRejected) => {
+                            println!("Draw rejected.");
+                            continue;
+                        },
+                        Err(Error::GameOver(msg)) => {
+                            println!("{}", msg);
+                            return;
+                        },
+                        _ => ((-1, -1), (-1, -1))
+                    }
+                },
+                _ => ((-1, -1), (-1, -1))
+            };
             match self.make_a_move(source, destination) {
                 Ok(()) => {
                     if self.is_under_checkmate(self.players[self.current_turn].get_color().other())
@@ -78,10 +97,11 @@ impl Chess {
                     Error::InvalidMove(msg) => println!("Invalid Move: {}", msg),
                     Error::InvalidDestination(msg) => println!("Invalid Destination: {}", msg),
                     Error::InvalidSource(msg) => println!("Invalid Source: {}", msg),
-                    Error::KingUnderCheck(msg) => println!("King under check{}", msg),
+                    Error::KingUnderCheck(msg) => println!("King under check. {}", msg),
                     Error::Checkmate(msg) => println!("Checkmate: {}", msg),
                     Error::InvalidPromotion(msg) => println!("Invalid Promotion: {}", msg),
-                    Error::Dummy => println!("Dummy"),
+                    Error::GameOver(msg) => println!("Game over! {}", msg),
+                    _ => ()
                 },
             }
         }
@@ -927,13 +947,17 @@ impl Chess {
 
     fn is_under_stalemate(&mut self, color: Color) -> bool {
         let king_position = self.chessboard.get_king_position(color);
+        let source = king_position;
+        let mut destination = (-1, -1);
         for move_ in LEGAL_KING_MOVES {
-            let destination = (king_position.0 + move_.0, king_position.1 + move_.1);
+            destination = (king_position.0 + move_.0, king_position.1 + move_.1);
+            self._move_piece(king_position, destination);
             match self.is_under_check(color) {
                 false => return false,
                 true => (),
             }
         }
+        self._move_piece(destination, source);
         !self.is_under_check(color)
     }
 
@@ -947,32 +971,38 @@ impl Chess {
 
     /// Prompts the user for source and destination
     /// Extracts the row and column from the input and returns a tuple
-    fn get_move() -> ((isize, isize), (isize, isize)) {
+    fn get_move() -> Result<((isize, isize), (isize, isize)), Error> {
         let mut source = String::new();
         let mut destination = String::new();
         stdout().flush().unwrap();
-        let source = Self::get_position("Source", source);
-        let destination = Self::get_position("Destination", destination);
-        (source, destination)
+        let source = Self::get_position("Enter Source(or Offer <D>raw / <R>esign:", source)?;
+        let destination = Self::get_position("Enter Destination(or Offer <D>raw / <R>esign:", destination)?;
+        Ok((source, destination))
     }
 
     /// Prompts for input until input is valid
-    fn get_position(str: &str, mut input: String) -> (isize, isize) {
+    fn get_position(str: &str, mut input: String) -> Result<(isize, isize), Error> {
         let mut position = (-1, -1);
         while position == (-1, -1) {
-            println!("Enter {}:", str);
+            println!("{}", str);
             stdin()
                 .read_line(&mut input)
                 .expect("Oops! Something went wrong. Please restart.");
-            match Self::extract_position(&input) {
+            match &input.trim()[..] {
+                "D" => return Err(Error::DrawOffer(format!("Player offered a draw"))),
+                "R" => return Err(Error::GameOver(format!("Player quit the game"))),
+                "Y" | "y" => return Err(Error::GameOver(format!("Draw accepted! Game over!"))),
+                "N" | "n" => return Err(Error::DrawRejected),
+                _ => match Self::extract_position(&input) {
                 (row, file) => {
                     if row < ROWS && file < COLS && row >= 0 && file >= 0 {
                         position = (row, file);
                     }
                 }
             }
+            }
         }
-        position
+        Ok(position)
     }
 
     /// Returns the 0-indexed (row, col) extracted from the string

@@ -5,5 +5,8 @@ pub enum Error {
     KingUnderCheck(String),
     Checkmate(String),
     InvalidPromotion(String),
+    GameOver(String),
+    DrawOffer(String),
+    DrawRejected,
     Dummy,
 }
