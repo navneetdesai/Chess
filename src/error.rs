@@ -1,13 +1,12 @@
-pub enum Error {
+pub enum GameState {
     InvalidMove(String),
     InvalidDestination(String),
     InvalidSource(String),
     KingUnderCheck(String),
-    Checkmate(String),
     InvalidPromotion(String),
     GameOver(String),
     DrawOffer(String),
     DrawRejected,
     Resignation,
-    Dummy,
+    OK,
 }

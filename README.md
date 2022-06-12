@@ -17,4 +17,7 @@ This library handles creation and move generation within a chess engine.
   let mut game = Chess::new(String::from(name1), String::from(name2));
   game.start();
   ```
+  
+### Suggest improvements
+Feel free to open a PR or suggest improvements / modifications / increments
 

@@ -1,10 +1,8 @@
 use crate::board::Board;
-use crate::error::Error;
+use crate::error::GameState;
 use crate::piece::{Color, Piece};
 use crate::player::Player;
-use std::fmt::format;
 use std::io::{stdin, stdout, Write};
-use std::thread::current;
 
 const PLAYERS: usize = 2;
 const ROWS: isize = 8;
@@ -38,7 +36,6 @@ pub struct Chess {
     players: [Player; 2],
     current_turn: usize,
     castling_rights: [[bool; 2]; PLAYERS], // queen side and king side castling per player
-    move_counter: usize,
 }
 
 impl Chess {
@@ -52,7 +49,6 @@ impl Chess {
             ],
             current_turn: 0,
             castling_rights: [[true, true], [true, true]],
-            move_counter: 0,
         }
     }
 
@@ -61,28 +57,29 @@ impl Chess {
         loop {
             self.chessboard.pretty_print();
             let current_player = &self.players[self.current_turn];
+            let color = current_player.get_color().clone();
             print!("{}' turn. \n", current_player.get_name());
             let (source, destination) = match Self::get_move() {
                 Ok((source, destination)) => (source, destination),
-                Err(Error::DrawOffer(_)) => {
+                Err(GameState::DrawOffer(_)) => {
                     let msg = &format!(
                         "{} offered a draw!\nDo you want to accept? (Y / N)",
                         current_player.get_name()
                     )[..];
                     let response = String::new();
                     match Self::get_position(msg, response) {
-                        Err(Error::DrawRejected) => {
+                        Err(GameState::DrawRejected) => {
                             println!("Draw rejected.");
                             continue;
                         }
-                        Err(Error::GameOver(msg)) => {
+                        Err(GameState::GameOver(msg)) => {
                             println!("{}", msg);
                             return;
                         }
                         _ => ((-1, -1), (-1, -1)),
                     }
                 }
-                Err(Error::Resignation) => {
+                Err(GameState::Resignation) => {
                     println!("Game Over! {} resigned", current_player.get_name());
                     break;
                 }
@@ -99,15 +96,18 @@ impl Chess {
                         break;
                     }
                     self.current_turn = (self.current_turn + 1) % 2;
+                    if self.is_under_stalemate(color) {
+                        println!("Draw by stalemate!");
+                        break;
+                    }
                 }
                 Err(e) => match e {
-                    Error::InvalidMove(msg) => println!("Invalid Move: {}", msg),
-                    Error::InvalidDestination(msg) => println!("Invalid Destination: {}", msg),
-                    Error::InvalidSource(msg) => println!("Invalid Source: {}", msg),
-                    Error::KingUnderCheck(msg) => println!("King under check. {}", msg),
-                    Error::Checkmate(msg) => println!("Checkmate: {}", msg),
-                    Error::InvalidPromotion(msg) => println!("Invalid Promotion: {}", msg),
-                    Error::GameOver(msg) => println!("Game over! {}", msg),
+                    GameState::InvalidMove(msg) => println!("Invalid Move: {}", msg),
+                    GameState::InvalidDestination(msg) => println!("Invalid Destination: {}", msg),
+                    GameState::InvalidSource(msg) => println!("Invalid Source: {}", msg),
+                    GameState::KingUnderCheck(msg) => println!("King under check. {}", msg),
+                    GameState::InvalidPromotion(msg) => println!("Invalid Promotion: {}", msg),
+                    GameState::GameOver(msg) => println!("Game over! {}", msg),
                     _ => (),
                 },
             }
@@ -119,7 +119,7 @@ impl Chess {
         &mut self,
         source: (isize, isize),
         destination: (isize, isize),
-    ) -> Result<(), Error> {
+    ) -> Result<(), GameState> {
         let piece = self._validate_move_generic(source, destination)?;
         let destination_piece = self.get_piece(destination.0, destination.1).clone();
         let initial_king_position = self
@@ -129,8 +129,8 @@ impl Chess {
         match piece {
             Piece::Pawn(color) => self.move_pawn(color, source, destination, false)?,
             Piece::Rook(color) => self.move_rook(color, source, destination)?,
-            Piece::Knight(color) => self.move_knight(source, destination)?,
-            Piece::Bishop(color) => self.move_bishop(source, destination)?,
+            Piece::Knight(_color) => self.move_knight(source, destination)?,
+            Piece::Bishop(_color) => self.move_bishop(source, destination)?,
             Piece::Queen(color) => self.move_queen(color, source, destination)?,
             Piece::King(color) => self.move_king(color, source, destination)?,
         }
@@ -156,7 +156,7 @@ impl Chess {
         destination_piece: Option<Piece>,
         initial_king_position: (isize, isize),
         initial_castling_rights: [[bool; 2]; 2],
-    ) -> Result<(), Error> {
+    ) -> Result<(), GameState> {
         self.chessboard.set_piece(source.0, source.1, piece.clone());
         match destination_piece.is_some() {
             true => {
@@ -168,7 +168,7 @@ impl Chess {
         self.chessboard
             .set_king_position(*piece.get_color(), initial_king_position);
         self.castling_rights = initial_castling_rights;
-        Err(Error::KingUnderCheck(format!(
+        Err(GameState::KingUnderCheck(format!(
             "Cannot move! King is/will be under check"
         )))
     }
@@ -182,36 +182,36 @@ impl Chess {
         &mut self,
         source: (isize, isize),
         destination: (isize, isize),
-    ) -> Result<Piece, Error> {
+    ) -> Result<Piece, GameState> {
         if destination.1 > COLS - 1
             || destination.1 < 0
             || destination.0 > ROWS - 1
             || destination.0 < 0
         {
-            return Err(Error::InvalidDestination(format!(
+            return Err(GameState::InvalidDestination(format!(
                 "Destination square out of the board: {:?}",
                 destination
             )));
         }
         if source.1 > COLS - 1 || source.1 < 0 || source.0 > ROWS - 1 || source.0 < 0 {
-            return Err(Error::InvalidSource(format!(
+            return Err(GameState::InvalidSource(format!(
                 "Source square out of the board: {:?}",
                 source
             )));
         }
         let piece = self.get_piece(source.0, source.1);
         if piece.is_none() {
-            return Err(Error::InvalidSource(format!("No piece at {:?}", source)));
+            return Err(GameState::InvalidSource(format!("No piece at {:?}", source)));
         }
         let piece = piece.unwrap();
         if piece.get_color() != self.players[self.current_turn].get_color() {
-            return Err(Error::InvalidMove(format!("Not your turn")));
+            return Err(GameState::InvalidMove(format!("Not your turn")));
         }
         let destination_piece = self.get_piece(destination.0, destination.1).clone();
         if destination_piece.is_some()
             && destination_piece.unwrap().get_color() == piece.get_color()
         {
-            return Err(Error::InvalidMove(format!("Can't capture your own piece")));
+            return Err(GameState::InvalidMove(format!("Can't capture your own piece")));
         }
         Ok(piece)
     }
@@ -223,7 +223,7 @@ impl Chess {
         source: (isize, isize),
         destination: (isize, isize),
         check: bool,
-    ) -> Result<(), Error> {
+    ) -> Result<(), GameState> {
         let (x, starting_x, front_square) = match color {
             Color::White => (2, 6, 1),
             Color::Black => (-2, 1, -1),
@@ -236,20 +236,20 @@ impl Chess {
                     .is_some()
                     || self.get_piece(destination.0, destination.1).is_some()
                 {
-                    return Err(Error::InvalidMove(format!(
+                    return Err(GameState::InvalidMove(format!(
                         "Can't move to {:?}, obstacles between source and destination",
                         destination
                     )));
                 }
             } else if source.0 == destination.0 + front_square {
                 if self.get_piece(destination.0, destination.1).is_some() {
-                    return Err(Error::InvalidMove(format!(
+                    return Err(GameState::InvalidMove(format!(
                         "Can't move to {:?}, cannot capture this piece",
                         destination
                     )));
                 }
             } else {
-                return Err(Error::InvalidMove(format!(
+                return Err(GameState::InvalidMove(format!(
                     "Can't move to {:?}, Pawn moves one square ahead or captures diagonally",
                     destination
                 )));
@@ -260,13 +260,13 @@ impl Chess {
         {
             let destination_piece = self.get_piece(destination.0, destination.1);
             if destination_piece.is_none() {
-                return Err(Error::InvalidMove(format!(
+                return Err(GameState::InvalidMove(format!(
                     "Can't move to {:?}, capturing move should have a piece at destination",
                     destination
                 )));
             }
         } else {
-            return Err(Error::InvalidMove(format!("Invalid pawn move!")));
+            return Err(GameState::InvalidMove(format!("Invalid pawn move!")));
         }
         self.promote_pawn(color, source, destination, check)?;
         self._move_piece(source, destination);
@@ -280,7 +280,7 @@ impl Chess {
         source: (isize, isize),
         destination: (isize, isize),
         check: bool,
-    ) -> Result<(), Error> {
+    ) -> Result<(), GameState> {
         if (destination.0 == 0 && color == Color::White)
             || (destination.0 == 7 && color == Color::Black) && !check
         {
@@ -305,7 +305,7 @@ impl Chess {
                     .set_piece(source.0, source.1, Piece::Bishop(color)),
                 _ => {
                     println!("Invalid promotion");
-                    return Err(Error::InvalidPromotion(format!("Invalid promotion")));
+                    return Err(GameState::InvalidPromotion(format!("Invalid promotion")));
                 }
             }
         }
@@ -318,10 +318,10 @@ impl Chess {
         color: Color,
         source: (isize, isize),
         destination: (isize, isize),
-    ) -> Result<(), Error> {
+    ) -> Result<(), GameState> {
         // validate its either in the same row or same column
         if source.0 != destination.0 && source.1 != destination.1 {
-            return Err(Error::InvalidMove(format!(
+            return Err(GameState::InvalidMove(format!(
                 "Invalid move. Rook moves in the same file or same row"
             )));
         }
@@ -393,7 +393,7 @@ impl Chess {
         start: isize,
         end: isize,
         direction: &str,
-    ) -> Result<(), Error> {
+    ) -> Result<(), GameState> {
         for index in start..end {
             let piece = if direction == "ROW" {
                 self.get_piece(source.0, index)
@@ -401,7 +401,7 @@ impl Chess {
                 self.get_piece(index, source.1)
             };
             if piece.is_some() {
-                return Err(Error::InvalidMove(format!(
+                return Err(GameState::InvalidMove(format!(
                     "Can't move to {:?}",
                     destination
                 )));
@@ -416,14 +416,14 @@ impl Chess {
         // color validation is done in _validate_move_generic
         source: (isize, isize),
         destination: (isize, isize),
-    ) -> Result<(), Error> {
+    ) -> Result<(), GameState> {
         let diff = (destination.0 - source.0, destination.1 - source.1);
         match LEGAL_KNIGHT_MOVES.contains(&diff) {
             true => {
                 self._move_piece(source, destination);
                 Ok(())
             }
-            false => Err(Error::InvalidMove(format!(
+            false => Err(GameState::InvalidMove(format!(
                 "Can't move to {:?}",
                 destination
             ))),
@@ -435,13 +435,13 @@ impl Chess {
         &mut self,
         source: (isize, isize),
         destination: (isize, isize),
-    ) -> Result<(), Error> {
+    ) -> Result<(), GameState> {
         // Color is not needed because color validation has been
         // completed in validate_move_generic
         if source.0 + source.1 != destination.0 + destination.1
             && source.0 - source.1 != destination.0 - destination.1
         {
-            return Err(Error::InvalidMove(format!(
+            return Err(GameState::InvalidMove(format!(
                 "Invalid move. Target is not on the same diagonal as the bishop"
             )));
         }
@@ -491,17 +491,17 @@ impl Chess {
         start: isize,
         end: isize,
         direction: &str,
-    ) -> Result<(), Error> {
+    ) -> Result<(), GameState> {
         for index in start..end {
             let piece = match direction {
                 "top-left" => self.get_piece(source.0 - index, source.1 - index),
                 "top-right" => self.get_piece(source.0 - index, source.1 + index),
                 "down-left" => self.get_piece(source.0 + index, source.1 - index),
                 "down-right" => self.get_piece(source.0 + index, source.1 + index),
-                _ => return Err(Error::InvalidMove(format!("Invalid move"))),
+                _ => return Err(GameState::InvalidMove(format!("Invalid move"))),
             };
             if piece.is_some() {
-                return Err(Error::InvalidMove(format!(
+                return Err(GameState::InvalidMove(format!(
                     "Can't move to {:?}. Bishop move blocked by another piece!",
                     destination,
                 )));
@@ -516,7 +516,7 @@ impl Chess {
         color: Color,
         source: (isize, isize),
         destination: (isize, isize),
-    ) -> Result<(), Error> {
+    ) -> Result<(), GameState> {
         if source.0 == destination.0 || source.1 == destination.1 {
             self.move_rook(color, source, destination)
         } else if source.0 + source.1 == destination.0 + destination.1
@@ -524,7 +524,7 @@ impl Chess {
         {
             self.move_bishop(source, destination)
         } else {
-            Err(Error::InvalidMove(format!("Invalid queen move.")))
+            Err(GameState::InvalidMove(format!("Invalid queen move.")))
         }
     }
 
@@ -534,7 +534,7 @@ impl Chess {
         color: Color,
         source: (isize, isize),
         destination: (isize, isize),
-    ) -> Result<(), Error> {
+    ) -> Result<(), GameState> {
         for move_ in &LEGAL_KING_MOVES {
             if source.0 + move_.0 == destination.0 && source.1 + move_.1 == destination.1 {
                 self.remove_castling_rights(&color);
@@ -609,7 +609,7 @@ impl Chess {
                 }
             }
         }
-        Err(Error::InvalidMove(format!("Invalid King move")))
+        Err(GameState::InvalidMove(format!("Invalid King move")))
     }
 
     /// Castles the king if possible otherwise returns an error
@@ -621,7 +621,7 @@ impl Chess {
         color: Color,
         rook_source: (isize, isize),
         rook_destination: (isize, isize),
-    ) -> Result<(), Error> {
+    ) -> Result<(), GameState> {
         self._move_piece(source, destination);
         self._move_piece(rook_source, rook_destination);
         self.castling_rights[castling_rights.0][castling_rights.1] = false;
@@ -646,7 +646,7 @@ impl Chess {
     /// Bounds checking should be done by the caller
     fn _move_piece(&mut self, source: (isize, isize), destination: (isize, isize)) {
         let piece = self.get_piece(source.0, source.1).unwrap();
-        let mut squares = &mut self.chessboard.squares;
+        let squares = &mut self.chessboard.squares;
         squares[destination.0 as usize][destination.1 as usize].place_piece(piece.clone());
         squares[source.0 as usize][source.1 as usize].remove_piece();
     }
@@ -711,10 +711,10 @@ impl Chess {
     fn is_under_attack_by_rqb(
         &self,
         color: Color,
-        mut row: isize,
-        mut file: isize,
+        row: isize,
+        file: isize,
         pieces: &str,
-    ) -> Result<bool, Error> {
+    ) -> Result<bool, GameState> {
         let piece = self.get_piece(row, file);
         if piece.is_some() {
             return if pieces == "rq"
@@ -725,7 +725,7 @@ impl Chess {
             {
                 Ok(true)
             } else {
-                Err(Error::Dummy) // this is necessary because of the loop in caller
+                Err(GameState::OK) // this is necessary because of the loop in caller
             };
         }
         Ok(false)
@@ -851,7 +851,7 @@ impl Chess {
         if !self.is_under_check(color) {
             return false;
         }
-        let mut king_position = self.chessboard.get_king_position(color);
+        let king_position = self.chessboard.get_king_position(color);
         let current_state = self.chessboard.clone();
         let current_castling_rights = self.castling_rights.clone();
 
@@ -876,7 +876,7 @@ impl Chess {
                             Piece::Knight(color) => self.checkmate_helper_knight(color, row, col),
                             Piece::Bishop(color) => self.checkmate_helper_bishop(color, row, col),
                             Piece::Queen(color) => self.checkmate_helper_queen(color, row, col),
-                            Piece::King(color) => true,
+                            Piece::King(_color) => true,
                         };
 
                         if !result {
@@ -907,7 +907,7 @@ impl Chess {
         true
     }
 
-    fn checkmate_helper_rook(&mut self, color: Color, row: isize, col: isize) -> bool {
+    fn checkmate_helper_rook(&mut self, _color: Color, row: isize, col: isize) -> bool {
         for i in 0..8 {
             let destinations = [(i, col), (row, i)];
             for destination in destinations {
@@ -922,7 +922,7 @@ impl Chess {
         true
     }
 
-    fn checkmate_helper_knight(&mut self, color: Color, row: isize, col: isize) -> bool {
+    fn checkmate_helper_knight(&mut self, _color: Color, row: isize, col: isize) -> bool {
         for move_ in &LEGAL_KNIGHT_MOVES {
             let destination = (row + move_.0, col + move_.1);
             match self.make_a_move((row, col), destination) {
@@ -935,7 +935,7 @@ impl Chess {
         true
     }
 
-    fn checkmate_helper_bishop(&mut self, color: Color, row: isize, col: isize) -> bool {
+    fn checkmate_helper_bishop(&mut self, _color: Color, row: isize, col: isize) -> bool {
         for index in 0..8 {
             let destinations = vec![
                 (row - index, col - index),
@@ -986,9 +986,9 @@ impl Chess {
 
     /// Prompts the user for source and destination
     /// Extracts the row and column from the input and returns a tuple
-    fn get_move() -> Result<((isize, isize), (isize, isize)), Error> {
-        let mut source = String::new();
-        let mut destination = String::new();
+    fn get_move() -> Result<((isize, isize), (isize, isize)), GameState> {
+        let source = String::new();
+        let destination = String::new();
         stdout().flush().unwrap();
         let source = Self::get_position("Enter Source(or Offer <D>raw / <R>esign:", source)?;
         let destination =
@@ -997,7 +997,7 @@ impl Chess {
     }
 
     /// Prompts for input until input is valid
-    fn get_position(str: &str, mut input: String) -> Result<(isize, isize), Error> {
+    fn get_position(str: &str, mut input: String) -> Result<(isize, isize), GameState> {
         let mut position = (-1, -1);
         while position == (-1, -1) {
             println!("{}", str);
@@ -1005,10 +1005,10 @@ impl Chess {
                 .read_line(&mut input)
                 .expect("Oops! Something went wrong. Please restart.");
             match &input.trim()[..] {
-                "D" => return Err(Error::DrawOffer(format!("Player offered a draw"))),
-                "R" => return Err(Error::Resignation),
-                "Y" | "y" => return Err(Error::GameOver(format!("Draw accepted! Game over!"))),
-                "N" | "n" => return Err(Error::DrawRejected),
+                "D" => return Err(GameState::DrawOffer(format!("Player offered a draw"))),
+                "R" => return Err(GameState::Resignation),
+                "Y" | "y" => return Err(GameState::GameOver(format!("Draw accepted! Game over!"))),
+                "N" | "n" => return Err(GameState::DrawRejected),
                 _ => match Self::extract_position(&input) {
                     (row, file) => {
                         if row < ROWS && file < COLS && row >= 0 && file >= 0 {

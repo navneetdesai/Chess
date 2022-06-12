@@ -71,12 +71,12 @@ impl Board {
     }
 
     pub fn set_piece(&mut self, row: isize, file: isize, piece: Piece) {
-        let mut board = &mut self.squares;
+        let board = &mut self.squares;
         board[row as usize][file as usize].place_piece(piece);
     }
 
     pub fn remove_piece(&mut self, row: isize, file: isize) {
-        let mut board = &mut self.squares;
+        let board = &mut self.squares;
         board[row as usize][file as usize].remove_piece();
     }
 
