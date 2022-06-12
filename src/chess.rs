@@ -1,8 +1,8 @@
-use std::fmt::format;
 use crate::board::Board;
 use crate::error::Error;
 use crate::piece::{Color, Piece};
 use crate::player::Player;
+use std::fmt::format;
 use std::io::{stdin, stdout, Write};
 use std::thread::current;
 
@@ -62,24 +62,31 @@ impl Chess {
             self.chessboard.pretty_print();
             let current_player = &self.players[self.current_turn];
             print!("{}' turn. \n", current_player.get_name());
-            let (source, destination) = match Self::get_move(){
+            let (source, destination) = match Self::get_move() {
                 Ok((source, destination)) => (source, destination),
                 Err(Error::DrawOffer(_)) => {
-                    let msg = &format!("{} offered a draw!\nDo you want to accept? (Y / N)", current_player.get_name())[..];
+                    let msg = &format!(
+                        "{} offered a draw!\nDo you want to accept? (Y / N)",
+                        current_player.get_name()
+                    )[..];
                     let response = String::new();
                     match Self::get_position(msg, response) {
                         Err(Error::DrawRejected) => {
                             println!("Draw rejected.");
                             continue;
-                        },
+                        }
                         Err(Error::GameOver(msg)) => {
                             println!("{}", msg);
                             return;
-                        },
-                        _ => ((-1, -1), (-1, -1))
+                        }
+                        _ => ((-1, -1), (-1, -1)),
                     }
-                },
-                _ => ((-1, -1), (-1, -1))
+                }
+                Err(Error::Resignation) => {
+                    println!("Game Over! {} resigned", current_player.get_name());
+                    break;
+                }
+                _ => ((-1, -1), (-1, -1)),
             };
             match self.make_a_move(source, destination) {
                 Ok(()) => {
@@ -101,7 +108,7 @@ impl Chess {
                     Error::Checkmate(msg) => println!("Checkmate: {}", msg),
                     Error::InvalidPromotion(msg) => println!("Invalid Promotion: {}", msg),
                     Error::GameOver(msg) => println!("Game over! {}", msg),
-                    _ => ()
+                    _ => (),
                 },
             }
         }
@@ -219,40 +226,44 @@ impl Chess {
     ) -> Result<(), Error> {
         let (x, starting_x, front_square) = match color {
             Color::White => (2, 6, 1),
-            Color::Black => (-2, 1, -1)
+            Color::Black => (-2, 1, -1),
         };
         // Non-capturing move
         if source.1 == destination.1 {
             if source.0 == destination.0 + x && source.0 == starting_x {
-                if self.get_piece(destination.0 + front_square, destination.1).is_some()
-                    || self.get_piece(destination.0, destination.1).is_some() {
-                        return Err(Error::InvalidMove(format!(
-                            "Can't move to {:?}, obstacles between source and destination",
-                            destination
-                        )));
+                if self
+                    .get_piece(destination.0 + front_square, destination.1)
+                    .is_some()
+                    || self.get_piece(destination.0, destination.1).is_some()
+                {
+                    return Err(Error::InvalidMove(format!(
+                        "Can't move to {:?}, obstacles between source and destination",
+                        destination
+                    )));
                 }
             } else if source.0 == destination.0 + front_square {
-                if self.get_piece(destination.0, destination.1).is_some(){
+                if self.get_piece(destination.0, destination.1).is_some() {
                     return Err(Error::InvalidMove(format!(
-                            "Can't move to {:?}, cannot capture this piece",
-                            destination
-                        )));
+                        "Can't move to {:?}, cannot capture this piece",
+                        destination
+                    )));
                 }
             } else {
                 return Err(Error::InvalidMove(format!(
-                        "Can't move to {:?}, Pawn moves one square ahead or captures diagonally",
-                        destination
-                    )));
+                    "Can't move to {:?}, Pawn moves one square ahead or captures diagonally",
+                    destination
+                )));
             }
         // Capturing move
         } else if (source.1 == destination.1 - 1 || source.1 == destination.1 + 1)
-            && source.0 == destination.0 + front_square {
+            && source.0 == destination.0 + front_square
+        {
             let destination_piece = self.get_piece(destination.0, destination.1);
             if destination_piece.is_none() {
                 return Err(Error::InvalidMove(format!(
-                        "Can't move to {:?}, capturing move should have a piece at destination",
-                        destination
-                    )));
+                    "Can't move to {:?}, capturing move should have a piece at destination",
+                    destination
+                )));
             }
         } else {
             return Err(Error::InvalidMove(format!("Invalid pawn move!")));
@@ -310,7 +321,9 @@ impl Chess {
     ) -> Result<(), Error> {
         // validate its either in the same row or same column
         if source.0 != destination.0 && source.1 != destination.1 {
-            return Err(Error::InvalidMove(format!("Invalid move. Rook moves in the same file or same row")));
+            return Err(Error::InvalidMove(format!(
+                "Invalid move. Rook moves in the same file or same row"
+            )));
         }
         match source.0 == destination.0 {
             true => {
@@ -428,7 +441,9 @@ impl Chess {
         if source.0 + source.1 != destination.0 + destination.1
             && source.0 - source.1 != destination.0 - destination.1
         {
-            return Err(Error::InvalidMove(format!("Invalid move. Target is not on the same diagonal as the bishop")));
+            return Err(Error::InvalidMove(format!(
+                "Invalid move. Target is not on the same diagonal as the bishop"
+            )));
         }
         match source.0 > destination.0 {
             true => match source.1 > destination.1 {
@@ -976,7 +991,8 @@ impl Chess {
         let mut destination = String::new();
         stdout().flush().unwrap();
         let source = Self::get_position("Enter Source(or Offer <D>raw / <R>esign:", source)?;
-        let destination = Self::get_position("Enter Destination(or Offer <D>raw / <R>esign:", destination)?;
+        let destination =
+            Self::get_position("Enter Destination(or Offer <D>raw / <R>esign:", destination)?;
         Ok((source, destination))
     }
 
@@ -990,16 +1006,16 @@ impl Chess {
                 .expect("Oops! Something went wrong. Please restart.");
             match &input.trim()[..] {
                 "D" => return Err(Error::DrawOffer(format!("Player offered a draw"))),
-                "R" => return Err(Error::GameOver(format!("Player quit the game"))),
+                "R" => return Err(Error::Resignation),
                 "Y" | "y" => return Err(Error::GameOver(format!("Draw accepted! Game over!"))),
                 "N" | "n" => return Err(Error::DrawRejected),
                 _ => match Self::extract_position(&input) {
-                (row, file) => {
-                    if row < ROWS && file < COLS && row >= 0 && file >= 0 {
-                        position = (row, file);
+                    (row, file) => {
+                        if row < ROWS && file < COLS && row >= 0 && file >= 0 {
+                            position = (row, file);
+                        }
                     }
-                }
-            }
+                },
             }
         }
         Ok(position)

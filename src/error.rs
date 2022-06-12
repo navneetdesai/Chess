@@ -8,5 +8,6 @@ pub enum Error {
     GameOver(String),
     DrawOffer(String),
     DrawRejected,
+    Resignation,
     Dummy,
 }
