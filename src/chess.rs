@@ -75,6 +75,10 @@ impl Chess {
                         Err(GameState::GameOver(msg)) => {
                             println!("{}", msg);
                             return;
+                        },
+                        Err(GameState::InvalidMove(msg)) => {
+                            println!("{}", msg);
+                            continue;
                         }
                         _ => ((-1, -1), (-1, -1)),
                     }
@@ -82,6 +86,10 @@ impl Chess {
                 Err(GameState::Resignation) => {
                     println!("Game Over! {} resigned", current_player.get_name());
                     break;
+                },
+                Err(GameState::InvalidMove(msg)) => {
+                    println!("{}", msg);
+                    continue;
                 }
                 _ => ((-1, -1), (-1, -1)),
             };
@@ -201,7 +209,7 @@ impl Chess {
         }
         let piece = self.get_piece(source.0, source.1);
         if piece.is_none() {
-            return Err(GameState::InvalidSource(format!("No piece at {:?}", source)));
+            return Err(GameState::InvalidSource(format!("No piece")));
         }
         let piece = piece.unwrap();
         if piece.get_color() != self.players[self.current_turn].get_color() {
@@ -560,6 +568,8 @@ impl Chess {
                         (source.0, source.1 + 3),
                         (source.0, source.1 + 1),
                     )?;
+                     return Ok(());
+
                 }
             } else {
                 if self.castling_rights[1][1]
@@ -574,6 +584,8 @@ impl Chess {
                         (source.0, source.1 + 3),
                         (source.0, source.1 + 1),
                     )?;
+                     return Ok(());
+
                 }
             }
         } else if source.1 - destination.1 == 3 && source.0 == destination.0 {
@@ -591,6 +603,8 @@ impl Chess {
                         (source.0, source.1 - 4),
                         (source.0, source.1 - 2),
                     )?;
+                     return Ok(());
+
                 }
             } else {
                 if self.castling_rights[1][0]
@@ -606,6 +620,8 @@ impl Chess {
                         (source.0, source.1 - 4),
                         (source.0, source.1 - 2),
                     )?;
+                     return Ok(());
+
                 }
             }
         }
@@ -966,10 +982,15 @@ impl Chess {
         let mut destination = (-1, -1);
         for move_ in LEGAL_KING_MOVES {
             destination = (king_position.0 + move_.0, king_position.1 + move_.1);
-            self._move_piece(king_position, destination);
-            match self.is_under_check(color) {
-                false => return false,
-                true => (),
+            if destination.0 < 8 && destination.0 >= 0 && destination.1 < 8 && destination.1 >= 0 {
+                self._move_piece(king_position, destination);
+                match self.is_under_check(color) {
+                    false => {
+                        self._move_piece(destination, king_position);
+                        return false;
+                    },
+                    true => (),
+                }
             }
         }
         self._move_piece(destination, source);
@@ -1010,11 +1031,12 @@ impl Chess {
                 "Y" | "y" => return Err(GameState::GameOver(format!("Draw accepted! Game over!"))),
                 "N" | "n" => return Err(GameState::DrawRejected),
                 _ => match Self::extract_position(&input) {
-                    (row, file) => {
+                    Ok((row, file)) => {
                         if row < ROWS && file < COLS && row >= 0 && file >= 0 {
                             position = (row, file);
                         }
-                    }
+                    },
+                    Err(error) => return Err(error),
                 },
             }
         }
@@ -1022,10 +1044,19 @@ impl Chess {
     }
 
     /// Returns the 0-indexed (row, col) extracted from the string
-    fn extract_position(str: &str) -> (isize, isize) {
+    fn extract_position(str: &str) -> Result<(isize, isize), GameState> {
         let mut chars = str.chars();
-        let file = chars.next().unwrap() as usize - 97;
-        let row = 8 - (chars.next().unwrap() as usize - 48);
-        (row as isize, file as isize)
+        let file = chars.next().unwrap() as usize;
+        if file < 97 {
+            return Err(GameState::InvalidMove(format!("Invalid file")));
+        }
+        let file = file - 97;
+        let row = chars.next().unwrap() as usize;
+        if row  - 48 > 8 {
+            return Err(GameState::InvalidMove(format!("Invalid rank")));
+        }
+        let row = 8 - (row - 48);
+
+        Ok((row as isize, file as isize))
     }
 }

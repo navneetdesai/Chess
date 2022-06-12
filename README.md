@@ -19,5 +19,5 @@ This library handles creation and move generation within a chess engine.
   ```
   
 ### Suggest improvements
-Feel free to open a PR or suggest improvements / modifications / increments
+Feel free to open a PR / Issue or suggest improvements / modifications / increments
 
