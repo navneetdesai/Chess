@@ -612,7 +612,6 @@ impl Chess {
                     && self.get_piece(source.0, source.1 - 2).is_none()
                     && self.get_piece(source.0, source.1 - 3).is_none()
                 {
-                    println!("coming here");
                     self.king_castling_helper(
                         source,
                         destination,
