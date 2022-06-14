@@ -612,6 +612,7 @@ impl Chess {
                     && self.get_piece(source.0, source.1 - 2).is_none()
                     && self.get_piece(source.0, source.1 - 3).is_none()
                 {
+                    println!("coming here");
                     self.king_castling_helper(
                         source,
                         destination,
@@ -621,7 +622,6 @@ impl Chess {
                         (source.0, source.1 - 2),
                     )?;
                      return Ok(());
-
                 }
             }
         }
@@ -1014,6 +1014,7 @@ impl Chess {
         let source = Self::get_position("Enter Source(or Offer <D>raw / <R>esign:", source)?;
         let destination =
             Self::get_position("Enter Destination(or Offer <D>raw / <R>esign:", destination)?;
+        stdout().flush().unwrap();
         Ok((source, destination))
     }
 
@@ -1036,7 +1037,9 @@ impl Chess {
                             position = (row, file);
                         }
                     },
-                    Err(error) => return Err(error),
+                    Err(error) => {
+                        return Err(error);
+                    },
                 },
             }
         }
@@ -1045,17 +1048,20 @@ impl Chess {
 
     /// Returns the 0-indexed (row, col) extracted from the string
     fn extract_position(str: &str) -> Result<(isize, isize), GameState> {
+        if str.trim().len() < 2 {
+            return Err(GameState::InvalidMove(format!("Specify both file and rank!")));
+        }
         let mut chars = str.chars();
-        let file = chars.next().unwrap() as usize;
+        let file = chars.next().unwrap() as isize;
         if file < 97 {
             return Err(GameState::InvalidMove(format!("Invalid file")));
         }
-        let file = file - 97;
-        let row = chars.next().unwrap() as usize;
-        if row  - 48 > 8 {
+        let row = chars.next().unwrap() as isize;
+        if str.trim().len() < 2 || row  - 48 > 8 || file < 97 {
             return Err(GameState::InvalidMove(format!("Invalid rank")));
         }
-        let row = 8 - (row - 48);
+        let file = (file - 97) as usize;
+        let row = (8 - (row - 48)) as usize;
 
         Ok((row as isize, file as isize))
     }
